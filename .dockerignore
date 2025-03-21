@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+.env
+turnos.db
+.git
+.gitignore
