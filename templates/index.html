@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Turnos LUSAIL Barbería</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet" />
+  <style>
+    body { font-family: 'Poppins', sans-serif; }
+  </style>
+</head>
+<body class="bg-gradient-to-br from-white via-sky-100 to-white min-h-screen flex items-center justify-center px-4">
+
+  <div class="bg-white shadow-xl rounded-2xl p-6 w-full max-w-xl border border-gray-200">
+    <h1 class="text-3xl font-semibold text-center text-[#800000] mb-6">Reservá tu turno</h1>
+
+    <form id="formTurno" class="space-y-4">
+      <input type="text" id="cliente" placeholder="Tu nombre" required
+  class="w-full border border-gray-300 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-yellow-500" />
+
+<input type="date" id="fecha" required
+  class="w-full border border-gray-300 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-yellow-500" />
+
+
+      <h2 class="text-lg font-semibold text-[#800000] mt-4">Horarios disponibles</h2>
+      <div id="horariosContainer" class="flex flex-wrap gap-2"></div>
+
+      <button type="submit"
+      class="w-full bg-yellow-400 hover:bg-yellow-500 text-black font-semibold py-2 rounded-xl shadow-md transition-all border border-yellow-600">
+      🏆 Confirmar turno
+    </button>
+    
+    </form>
+
+    <div id="mensaje" class="mt-6 hidden">
+      <div class="flex items-center gap-3 bg-green-100 border border-green-300 text-green-800 rounded-xl p-4 shadow-md">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="#FFD700" viewBox="0 0 24 24" class="w-6 h-6">
+          <path d="M17 4V2H7v2H5v2c0 2.5 2.5 4.5 4.5 4.5h.5v2.75L8.5 17v1h7v-1l-1.5-3.75V10.5h.5C16.5 10.5 19 8.5 19 6V4h-2zM9 4h6v1H9V4z"/>
+        </svg>
+        <span id="mensajeTexto" class="text-sm font-medium"></span>
+      </div>
+    </div>    
+  </div>
+
+  <script>
+    const hoy = new Date().toISOString().split('T')[0];
+    const fechaInput = document.getElementById("fecha");
+    fechaInput.setAttribute("min", hoy);
+
+    let horaSeleccionada = null;
+
+    fechaInput.addEventListener("change", async (e) => {
+      const fecha = new Date(e.target.value);
+      if (fecha.getDay() === 0) {
+        alert("La peluquería no abre los domingos.");
+        fechaInput.value = "";
+        document.getElementById("horariosContainer").innerHTML = "";
+        return;
+      }
+      await cargarHorariosDisponibles();
+    });
+
+    function generarHorarios(inicio, fin, intervaloMin) {
+      const horarios = [];
+      const [h, m] = inicio.split(":").map(Number);
+      const [hf, mf] = fin.split(":").map(Number);
+      let actual = new Date(0, 0, 0, h, m);
+      const final = new Date(0, 0, 0, hf, mf);
+      while (actual <= final) {
+        horarios.push(actual.toTimeString().slice(0, 5));
+        actual.setMinutes(actual.getMinutes() + intervaloMin);
+      }
+      return horarios;
+    }
+
+    async function cargarHorariosDisponibles() {
+      const fecha = fechaInput.value;
+      if (!fecha) return;
+
+      const res = await fetch("/turnos");
+      const turnos = await res.json();
+      const ocupados = turnos.filter(t => t.fecha === fecha).map(t => t.hora);
+
+      const horarios = generarHorarios("10:00", "20:00", 45);
+      const disponibles = horarios.filter(h => !ocupados.includes(h));
+
+      const container = document.getElementById("horariosContainer");
+      container.innerHTML = "";
+
+      disponibles.forEach(hora => {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.textContent = hora;
+        btn.className = "horario-btn px-4 py-2 bg-sky-200 hover:bg-[#800000] hover:text-white font-semibold rounded-xl transition-colors";
+        btn.addEventListener("click", () => {
+          document.querySelectorAll(".horario-btn").forEach(b => b.classList.remove("bg-[#800000]", "text-white"));
+          btn.classList.add("bg-[#800000]", "text-white");
+          horaSeleccionada = hora;
+        });
+        container.appendChild(btn);
+      });
+
+      if (disponibles.length === 0) {
+        container.innerHTML = "<p class='text-sm text-gray-500'>No hay horarios disponibles para esta fecha.</p>";
+        horaSeleccionada = null;
+      }
+    }
+
+    document.getElementById("formTurno").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const cliente = document.getElementById("cliente").value;
+      const fecha = document.getElementById("fecha").value;
+      const hora = horaSeleccionada;
+
+      if (!hora) {
+        document.getElementById("mensaje").textContent = "Seleccioná un horario válido.";
+        return;
+      }
+
+      const res = await fetch("/reservar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cliente, fecha, hora })
+      });
+
+      const resultado = await res.json();
+      const mensajeBox = document.getElementById("mensaje");
+const mensajeTexto = document.getElementById("mensajeTexto");
+mensajeTexto.textContent = resultado.mensaje || resultado.error;
+mensajeBox.classList.remove("hidden");
+
+if (!res.ok) {
+  mensajeBox.classList.remove("bg-green-100", "border-green-300", "text-green-800");
+  mensajeBox.classList.add("bg-red-100", "border-red-300", "text-red-800");
+} else {
+  mensajeBox.classList.remove("bg-red-100", "border-red-300", "text-red-800");
+  mensajeBox.classList.add("bg-green-100", "border-green-300", "text-green-800");
+}
+
+
+      if (res.ok) {
+        document.getElementById("formTurno").reset();
+        document.getElementById("horariosContainer").innerHTML = "";
+        horaSeleccionada = null;
+      }
+    });
+  </script>
+</body>
+</html>
