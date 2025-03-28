@@ -83,7 +83,7 @@ def reservar_turno():
     # Enviar notificación por email
     try:
         enviar_email(
-            destinatario="paulagarrocho@gmail.com",
+            destinatario="Lusail.barberia@gmail.com",
             asunto="Nuevo turno reservado",
             cuerpo=f"Nuevo turno reservado por {data['cliente']} el {data['fecha']} a las {data['hora']}"
         )
