@@ -22,6 +22,9 @@
 <input type="date" id="fecha" required
   class="w-full border border-gray-300 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-yellow-500" />
 
+  <h2 id="tituloTurnos" class="text-lg font-semibold text-[#800000] mt-4 hidden">Tus turnos reservados</h2>
+  <ul id="turnosCliente" class="space-y-2"></ul>
+
 
       <h2 class="text-lg font-semibold text-[#800000] mt-4">Horarios disponibles</h2>
       <div id="horariosContainer" class="flex flex-wrap gap-2"></div>
@@ -59,7 +62,48 @@
         return;
       }
       await cargarHorariosDisponibles();
+      await mostrarTurnosCliente();
     });
+
+    document.getElementById("cliente").addEventListener("input", async () => {
+      await mostrarTurnosCliente();
+    });
+    
+
+    async function mostrarTurnosCliente() {
+      const cliente = document.getElementById("cliente").value;
+      const fecha = document.getElementById("fecha").value;
+      const titulo = document.getElementById("tituloTurnos");
+      const lista = document.getElementById("turnosCliente");
+    
+      lista.innerHTML = "";
+      titulo.classList.add("hidden");
+    
+      if (!cliente || !fecha) return;
+    
+      const res = await fetch("/turnos");
+      const turnos = await res.json();
+    
+      const turnosCliente = turnos.filter(t =>
+        t.fecha === fecha && t.cliente.toLowerCase().trim() === cliente.toLowerCase().trim()
+      );
+    
+      if (turnosCliente.length > 0) {
+        titulo.classList.remove("hidden");
+        turnosCliente.forEach(t => {
+          const li = document.createElement("li");
+          li.className = "flex justify-between items-center bg-gray-100 rounded-xl px-4 py-2";
+    
+          li.innerHTML = `
+            <span>${t.hora} - ${t.cliente}</span>
+            <button class="text-red-500 font-semibold" onclick="cancelarTurno('${t.cliente}', '${t.fecha}', '${t.hora}')">❌ Cancelar</button>
+          `;
+    
+          lista.appendChild(li);
+        });
+      }
+    }
+       
 
     function generarHorarios(inicio, fin, intervaloMin) {
       const horarios = [];
@@ -143,8 +187,25 @@ if (!res.ok) {
         document.getElementById("formTurno").reset();
         document.getElementById("horariosContainer").innerHTML = "";
         horaSeleccionada = null;
+        await mostrarTurnosCliente(); 
       }
     });
+
+    async function cancelarTurno(cliente, fecha, hora) {
+      if (!confirm(`¿Seguro que querés cancelar el turno de ${cliente} a las ${hora}?`)) return;
+    
+      const res = await fetch("/cancelar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cliente, fecha, hora })
+      });
+    
+      const data = await res.json();
+      alert(data.mensaje || data.error);
+      await cargarHorariosDisponibles();
+      await mostrarTurnosCliente();
+    }
+    
   </script>
 </body>
 </html>

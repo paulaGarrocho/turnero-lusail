@@ -99,7 +99,23 @@ def listar_turnos():
     conn.close()
     return jsonify([dict(turno) for turno in turnos])
 
+@app.route("/cancelar", methods=["POST"])
+def cancelar_turno():
+    data = request.json
+
+    if not all(k in data for k in ("cliente", "fecha", "hora")):
+        return jsonify({"error": "Faltan datos para cancelar el turno"}), 400
+
+    conn = get_db_connection()
+    conn.execute("DELETE FROM turnos WHERE cliente = ? AND fecha = ? AND hora = ?",
+                 (data["cliente"], data["fecha"], data["hora"]))
+    conn.commit()
+    conn.close()
+
+    return jsonify({"mensaje": "Turno cancelado correctamente"}), 200
+
 if __name__ == "__main__":
     os.makedirs("templates", exist_ok=True)
     os.makedirs("static", exist_ok=True)
     app.run(debug=True)
+    
